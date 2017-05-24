@@ -22,9 +22,10 @@ mde.exportMetadata = function() {
 	var objectType = $( "#objectType" ).val(),
 			objectId = $( "#objectList" ).val(),
 			format = $( "#format" ).val(),
-			compression = $("#compression").val(),
-			url = "../api/" + objectType + "/" + objectId + "/metadata." + format + (compression ?  compression : "" );
+			compression = $("#compression").val();
+	var extension =  ( format ? "." + format : "" ) + ( compression ?  "." + compression : "" );
+	var	url = "../api/" + objectType + "/" + objectId + "/metadata" + extension;
 
-	url += "?attachment=" + "metadataDependency" + format + compression;;
+	url += "?attachment=" + "metadataDependency" + extension;
 	window.open( url, "_blank" );
 }
