@@ -28,6 +28,8 @@ package org.hisp.dhis.node;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import com.google.common.base.MoreObjects;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,6 +56,13 @@ public class LinearNodePipeline implements NodePipeline
         Node transform( Node node )
         {
             return transformer.transform( node, arguments );
+        }
+
+        @Override
+        public String toString()
+        {
+            return MoreObjects.toStringHelper( this )
+                .toString();
         }
     }
 
@@ -83,5 +92,12 @@ public class LinearNodePipeline implements NodePipeline
     public void addTransformer( NodeTransformer nodeTransformer, List<String> arguments )
     {
         nodeTransformers.add( new NodeTransformerWithArgs( checkNotNull( nodeTransformer ), arguments ) );
+    }
+
+    @Override
+    public String toString()
+    {
+        return MoreObjects.toStringHelper( this )
+            .toString();
     }
 }

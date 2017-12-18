@@ -32,6 +32,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hisp.dhis.common.EmbeddedObject;
@@ -51,7 +52,6 @@ import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.system.util.ReflectionUtils;
 import org.hisp.dhis.user.UserCredentials;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.util.StringUtils;
 
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
@@ -161,6 +161,8 @@ public class DefaultFieldFilterService implements FieldFilterService
 
         final FieldMap finalFieldMap = fieldMap;
 
+        System.out.println( "finalFieldMap = " + finalFieldMap );
+
         objects.forEach( object -> {
             AbstractNode node = buildNode( finalFieldMap, wrapper, object, params.getDefaults() );
 
@@ -176,7 +178,7 @@ public class DefaultFieldFilterService implements FieldFilterService
     private AbstractNode buildNode( FieldMap fieldMap, Class<?> klass, Object object, Defaults defaults )
     {
         Schema schema = schemaService.getDynamicSchema( klass );
-        return buildNode( fieldMap, klass, object, schema.getName(), defaults );
+        return buildNode( fieldMap, klass, object, schema.getName(), defaults, null );
     }
 
     private boolean shouldExclude( Object object, Defaults defaults )
@@ -185,7 +187,7 @@ public class DefaultFieldFilterService implements FieldFilterService
             Preheat.isDefaultClass( (IdentifiableObject) object ) && "default".equals( ((IdentifiableObject) object).getName() );
     }
 
-    private AbstractNode buildNode( FieldMap fieldMap, Class<?> klass, Object object, String nodeName, Defaults defaults )
+    private AbstractNode buildNode( FieldMap fieldMap, Class<?> klass, Object object, String nodeName, Defaults defaults, FieldParams parentField )
     {
         Schema schema = schemaService.getDynamicSchema( klass );
 
@@ -200,7 +202,6 @@ public class DefaultFieldFilterService implements FieldFilterService
 
         if ( shouldExclude( object, defaults ) )
         {
-            System.err.println( "Exclude: " + object );
             return null;
         }
 
@@ -209,16 +210,30 @@ public class DefaultFieldFilterService implements FieldFilterService
         for ( String fieldKey : fieldMap.keySet() )
         {
             AbstractNode child = null;
-            Property property = schema.getProperty( fieldKey );
+            Property property = null;
 
-            if ( property == null || !property.isReadable() )
+            Object returnValue = null;
+
+            if ( parentField != null  && fieldKey.equals( parentField.getFieldProperty().getCollectionName() ) )
             {
-                // throw new FieldFilterException( fieldKey, schema );
-                log.debug( "Unknown field property `" + fieldKey + "`, available fields are " + schema.getPropertyMap().keySet() );
-                continue;
+                // Doing transform operation on parent collection, need to add this node  to root
+                property = parentField.getFieldProperty();
+                returnValue = ReflectionUtils.invokeMethod( parentField.getFieldObject(), property.getGetterMethod() );
+            }
+            else
+            {
+                property = schema.getProperty( fieldKey );
+
+                if ( property == null || !property.isReadable() )
+                {
+                    // throw new FieldFilterException( fieldKey, schema );
+                    log.debug( "Unknown field property `" + fieldKey + "`, available fields are " + schema.getPropertyMap().keySet() );
+                    continue;
+                }
+
+                returnValue = ReflectionUtils.invokeMethod( object, property.getGetterMethod() );
             }
 
-            Object returnValue = ReflectionUtils.invokeMethod( object, property.getGetterMethod() );
             Schema propertySchema = schemaService.getDynamicSchema( property.getKlass() );
 
             FieldMap fieldValue = fieldMap.get( fieldKey );
@@ -316,7 +331,8 @@ public class DefaultFieldFilterService implements FieldFilterService
 
                     for ( Object collectionObject : (Collection<?>) returnValue )
                     {
-                        Node node = buildNode( fieldValue, property.getItemKlass(), collectionObject, property.getName(), defaults );
+                        Node node = buildNode( fieldValue, property.getItemKlass(), collectionObject, property.getName(), defaults,
+                            new FieldParams(  object, property, complexNode ) );
 
                         if ( !node.getChildren().isEmpty() )
                         {
@@ -341,7 +357,18 @@ public class DefaultFieldFilterService implements FieldFilterService
                     child = new SimpleNode( child.getName(), ((PeriodType) ((SimpleNode) child).getValue()).getName() );
                 }
 
-                complexNode.addChild( fieldValue.getPipeline().process( child ) );
+                Node childNode = fieldValue.getPipeline().process( child );
+
+                if ( parentField != null  && StringUtils.equals( fieldKey, parentField.getFieldProperty().getCollectionName() ) )
+                {
+                    parentField.getNode().addChild( child );
+
+                    fieldValue.getPipeline().process( childNode );
+                }
+                else
+                {
+                    complexNode.addChild( childNode );
+                }
             }
         }
 
@@ -437,7 +464,7 @@ public class DefaultFieldFilterService implements FieldFilterService
                     }
                 }
 
-                fieldMap.put( fieldName, value );
+                addFieldMap( fieldMap, fieldName, value );
 
                 cleanupFields.add( fieldKey );
             }
@@ -452,6 +479,19 @@ public class DefaultFieldFilterService implements FieldFilterService
                 fieldMap.remove( field.substring( 1 ) );
             }
         }
+    }
+
+    private FieldMap addFieldMap( FieldMap fieldMap, String fieldName, FieldMap value )
+    {
+        FieldMap existed = fieldMap.get( fieldName );
+
+        if ( existed != null )
+        {
+            existed.put( fieldName, value );
+            return fieldMap;
+        }
+
+        return fieldMap.put( fieldName, value );
     }
 
     private FieldMap getFullFieldMap( Schema schema )
