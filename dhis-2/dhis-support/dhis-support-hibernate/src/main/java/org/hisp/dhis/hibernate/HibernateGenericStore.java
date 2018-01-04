@@ -103,9 +103,6 @@ public class HibernateGenericStore<T>
     protected CurrentUserService currentUserService;
 
     @Autowired
-    protected SchemaService schemaService;
-
-    @Autowired
     protected DeletedObjectService deletedObjectService;
 
     /**
@@ -723,8 +720,6 @@ public class HibernateGenericStore<T>
     @SuppressWarnings( "unchecked" )
     public List<T> getAllByAttributes( List<Attribute> attributes )
     {
-        CriteriaBuilder builder = getCriteriaBuilder();
-        CriteriaQuery query = getCriteriaQuery();
         Schema schema = schemaService.getDynamicSchema( getClazz() );
 
         if ( schema == null || !schema.havePersistedProperty( "attributeValues" ) || attributes.isEmpty() )
