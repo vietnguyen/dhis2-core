@@ -39,6 +39,7 @@ import org.hisp.dhis.user.CurrentUserService;
 import org.hisp.dhis.user.User;
 import org.hisp.dhis.user.UserAccess;
 import org.hisp.dhis.user.UserGroupAccess;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,14 +54,14 @@ import static org.springframework.util.CollectionUtils.containsAny;
  */
 public class DefaultAclService implements AclService
 {
-    private final SchemaService schemaService;
+    @Autowired
+    private  SchemaService schemaService;
 
-    private final CurrentUserService currentUserService;
+    @Autowired
+    private  CurrentUserService currentUserService;
 
-    public DefaultAclService( SchemaService schemaService, CurrentUserService currentUserService )
+    public DefaultAclService( )
     {
-        this.schemaService = schemaService;
-        this.currentUserService = currentUserService;
     }
 
     @Override

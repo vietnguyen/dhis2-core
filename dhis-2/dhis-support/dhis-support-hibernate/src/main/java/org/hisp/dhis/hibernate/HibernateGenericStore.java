@@ -55,6 +55,7 @@ import org.hisp.dhis.hibernate.exception.CreateAccessDeniedException;
 import org.hisp.dhis.hibernate.exception.DeleteAccessDeniedException;
 import org.hisp.dhis.hibernate.exception.ReadAccessDeniedException;
 import org.hisp.dhis.hibernate.exception.UpdateAccessDeniedException;
+import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.security.acl.AccessStringHelper;
 import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.CurrentUserService;
@@ -65,7 +66,6 @@ import org.springframework.beans.factory.annotation.Required;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.Assert;
 
-import javax.annotation.PostConstruct;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -114,6 +114,9 @@ public class HibernateGenericStore<T>
     @Autowired
     protected AclService aclService;
 
+    @Autowired
+    protected SchemaService schemaService;
+
     protected Class<T> clazz;
 
     /**
@@ -150,16 +153,6 @@ public class HibernateGenericStore<T>
     public void setCacheable( boolean cacheable )
     {
         this.cacheable = cacheable;
-    }
-
-    protected CriteriaBuilder builder;
-
-    protected CriteriaQuery query;
-
-    @PostConstruct
-    private void initiateCriteriaProperties()
-    {
-        builder = getCriteriaBuilder();
     }
 
     // -------------------------------------------------------------------------
@@ -726,8 +719,9 @@ public class HibernateGenericStore<T>
     public List<T> getAllByAttributes( List<Attribute> attributes )
     {
         //TODO check for presence of attribute values
-        
-        query = getCriteriaQuery();
+
+
+        CriteriaQuery query = getCriteriaQuery();
 
         Root root = query.from( getClazz() );
         Join joinAttributeValue = root.join( ("attributeValues"), JoinType.INNER );
@@ -774,7 +768,8 @@ public class HibernateGenericStore<T>
     @SuppressWarnings( "unchecked" )
     public List<AttributeValue> getAttributeValueByAttribute( Attribute attribute )
     {
-        query = getCriteriaQuery();
+        CriteriaBuilder builder = getCriteriaBuilder();
+        CriteriaQuery query = getCriteriaQuery();
 
         Root root = query.from( getClazz() );
         Join joinAttributeValue = root.join( ("attributeValues"), JoinType.INNER );
@@ -788,7 +783,8 @@ public class HibernateGenericStore<T>
     @SuppressWarnings( "unchecked" )
     public List<AttributeValue> getAttributeValueByAttributeAndValue( Attribute attribute, String value )
     {
-        query = getCriteriaQuery();
+        CriteriaBuilder builder = getCriteriaBuilder();
+        CriteriaQuery query = getCriteriaQuery();
 
         Root root = query.from( getClazz() );
         Join joinAttributeValue = root.join( ("attributeValues"), JoinType.INNER );
