@@ -185,16 +185,7 @@ public abstract class DhisConvenienceTest
 
     protected RenderService renderService;
 
-    @Autowired( required = false )
-    protected DataElementCategoryService _categoryService;
-
-    protected static DataElementCategoryService categoryService;
-
-    @PostConstruct
-    protected void initStaticServices()
-    {
-        categoryService = _categoryService;
-    }
+    protected DataElementCategoryService categoryService;
 
     static
     {

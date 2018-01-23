@@ -34,6 +34,7 @@ import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.common.OrganisationUnitSelectionMode;
 import org.hisp.dhis.common.ValueType;
 import org.hisp.dhis.dataelement.DataElement;
+import org.hisp.dhis.dataelement.DataElementCategoryService;
 import org.hisp.dhis.dxf2.events.enrollment.Enrollment;
 import org.hisp.dhis.dxf2.events.enrollment.EnrollmentService;
 import org.hisp.dhis.dxf2.events.event.DataValue;
@@ -90,6 +91,9 @@ public class RegistrationSingleEventServiceTest
 
     @Autowired
     private UserService _userService;
+
+    @Autowired
+    private DataElementCategoryService _categoryService;
     
     @Autowired
     private CurrentUserService currentUserService;
@@ -111,6 +115,7 @@ public class RegistrationSingleEventServiceTest
     protected void setUpTest() throws Exception
     {
         userService = _userService;
+        categoryService = _categoryService;
 
         organisationUnitA = createOrganisationUnit( 'A' );
         organisationUnitB = createOrganisationUnit( 'B' );
