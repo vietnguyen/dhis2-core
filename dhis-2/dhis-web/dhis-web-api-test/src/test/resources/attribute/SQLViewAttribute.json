@@ -12,7 +12,7 @@
   "dataElementAttribute": false,
   "mandatory": false,
   "categoryOptionGroupAttribute": false,
-  "trackedEntityAttribute": false,
+  "trackedEntityTypeAttribute": false,
   "externalAccess": false,
   "programStageAttribute": false,
   "programAttribute": false,
