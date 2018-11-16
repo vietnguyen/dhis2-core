@@ -160,6 +160,10 @@ public interface IdentifiableObjectManager
 
     <T extends IdentifiableObject> List<T> get( Class<T> clazz, Collection<String> uids );
 
+    boolean canDataWrite( User user, Class<? extends IdentifiableObject> clazz, String uid );
+
+    boolean canDataRead( User user, Class<? extends IdentifiableObject> clazz, String uid );
+
     boolean isDefault( IdentifiableObject object );
 
     // -------------------------------------------------------------------------

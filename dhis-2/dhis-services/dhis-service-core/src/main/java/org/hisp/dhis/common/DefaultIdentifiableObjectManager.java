@@ -956,6 +956,22 @@ public class DefaultIdentifiableObjectManager
             .build();
     }
 
+    @Override
+    public  boolean canDataWrite( User user, Class<? extends IdentifiableObject> clazz, String uid )
+    {
+        IdentifiableObjectStore<IdentifiableObject> store = getIdentifiableObjectStore( clazz );
+
+        return store.getDataWrite( user, uid ) != null ? true : false;
+    }
+
+    @Override
+    public  boolean canDataRead( User user, Class<? extends IdentifiableObject> clazz, String uid )
+    {
+        IdentifiableObjectStore<IdentifiableObject> store = getIdentifiableObjectStore( clazz );
+
+        return store.getDataRead( user, uid ) != null ? true : false;
+    }
+
     //--------------------------------------------------------------------------
     // Supportive methods
     //--------------------------------------------------------------------------

@@ -96,4 +96,6 @@ public interface InternalHibernateGenericStore<T>
     List<Function<Root<T>, Predicate>> getDataSharingPredicates( CriteriaBuilder builder, User user, String access );
 
     List<Function<Root<T>, Predicate>> getDataSharingPredicates( CriteriaBuilder builder, UserInfo user, String access );
+
+
 }

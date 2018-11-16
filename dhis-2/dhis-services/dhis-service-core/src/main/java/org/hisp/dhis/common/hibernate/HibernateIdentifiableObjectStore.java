@@ -863,6 +863,30 @@ public class HibernateIdentifiableObjectStore<T extends BaseIdentifiableObject>
         return getList( builder, parameters );
     }
 
+    @Override
+    public final T getDataRead( User user, String uid )
+    {
+        CriteriaBuilder builder = getCriteriaBuilder();
+
+        return getSingleResult( builder, newJpaParameters()
+            .addPredicates( getDataSharingPredicates( builder, user, AclService.LIKE_READ_DATA ) )
+            .addPredicate( root -> builder.equal( root.get( "uid" ), uid ) )
+        );
+    }
+
+    @Override
+    public final T getDataWrite( User user, String uid )
+    {
+        CriteriaBuilder builder = getCriteriaBuilder();
+
+        return getSingleResult( builder, newJpaParameters()
+            .addPredicates( getDataSharingPredicates( builder, user, AclService.LIKE_WRITE_DATA ) )
+            .addPredicate( root -> builder.equal( root.get( "uid" ), uid ) )
+        );
+    }
+
+
+
     //----------------------------------------------------------------------------------------------------------------
     // Supportive methods
     //----------------------------------------------------------------------------------------------------------------

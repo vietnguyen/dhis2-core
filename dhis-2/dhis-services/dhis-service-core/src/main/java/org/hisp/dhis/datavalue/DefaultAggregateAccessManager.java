@@ -30,16 +30,15 @@ package org.hisp.dhis.datavalue;
  *
  */
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.hisp.dhis.category.CategoryOption;
 import org.hisp.dhis.category.CategoryOptionCombo;
+import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.commons.util.SystemUtils;
 import org.hisp.dhis.dataelement.DataElementOperand;
 import org.hisp.dhis.dataset.DataSet;
-import org.hisp.dhis.security.acl.AclService;
 import org.hisp.dhis.user.User;
-
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -58,11 +57,11 @@ public class DefaultAggregateAccessManager
         .initialCapacity( 1000 )
         .maximumSize( SystemUtils.isTestRun() ? 0 : 10000 ).build();
 
-    private final AclService aclService;
+    private final IdentifiableObjectManager idObjectManager;
 
-    public DefaultAggregateAccessManager( AclService aclService )
+    public DefaultAggregateAccessManager( IdentifiableObjectManager idObjectManager )
     {
-        this.aclService = aclService;
+        this.idObjectManager = idObjectManager;
     }
 
     // ---------------------------------------------------------------------
@@ -97,7 +96,7 @@ public class DefaultAggregateAccessManager
 
         options.forEach( option -> {
 
-            if ( !aclService.canDataRead( user, option ) )
+            if ( !idObjectManager.canDataRead( user, CategoryOptionCombo.class, option.getUid() ) )
             {
                 errors.add( "User has no data read access for CategoryOption: " + option.getUid() );
             }
@@ -116,7 +115,7 @@ public class DefaultAggregateAccessManager
             return errors;
         }
 
-        if ( !aclService.canDataWrite( user, dataSet ) )
+        if ( !idObjectManager.canDataWrite( user, DataSet.class, dataSet.getUid() ) )
         {
             errors.add( "User does not have write access for DataSet: " + dataSet.getUid() );
         }
@@ -134,7 +133,7 @@ public class DefaultAggregateAccessManager
             return errors;
         }
 
-        if ( !aclService.canDataRead( user, dataSet ) )
+        if ( !idObjectManager.canDataRead( user, DataSet.class, dataSet.getUid() ) )
         {
             errors.add( "User does not have read access for DataSet: " + dataSet.getUid() );
         }
@@ -155,7 +154,7 @@ public class DefaultAggregateAccessManager
         Set<CategoryOption> options = optionCombo.getCategoryOptions();
 
         options.forEach( attrOption -> {
-            if ( !aclService.canDataWrite( user, attrOption ) )
+            if ( !idObjectManager.canDataRead( user, CategoryOption.class, attrOption.getUid() ) )
             {
                 errors.add( "User has no data write access for CategoryOption: " + attrOption.getUid() );
             }
@@ -185,7 +184,7 @@ public class DefaultAggregateAccessManager
         Set<CategoryOption> options = optionCombo.getCategoryOptions();
 
         options.forEach( attrOption -> {
-            if ( !aclService.canDataRead( user, attrOption ) )
+            if ( !idObjectManager.canDataRead( user, CategoryOption.class, attrOption.getUid() ) )
             {
                 errors.add( "User has no data read access for CategoryOption: " + attrOption.getUid() );
             }
@@ -221,7 +220,7 @@ public class DefaultAggregateAccessManager
         }
 
         options.forEach( option -> {
-            if ( !aclService.canDataWrite( user, option ) )
+            if ( !idObjectManager.canDataWrite( user, CategoryOption.class, option.getUid() ) )
             {
                 errors.add( "User has no data write access for CategoryOption: " + option.getUid() );
             }

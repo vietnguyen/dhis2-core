@@ -290,4 +290,10 @@ public interface IdentifiableObjectStore<T>
     List<T> getDataWriteAll( User user );
 
     List<T> getDataReadAll( int first, int max );
+
+    T getDataWrite( User user, String uid );
+
+    T getDataRead( User user, String uid );
+
+
 }
