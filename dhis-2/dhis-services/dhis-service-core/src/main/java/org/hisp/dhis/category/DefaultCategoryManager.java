@@ -33,6 +33,7 @@ package org.hisp.dhis.category;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hisp.dhis.common.DeleteNotAllowedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,8 +73,6 @@ public class DefaultCategoryManager
         List<CategoryOptionCombo> generatedOptionCombos = categoryCombo.generateOptionCombosList();
         Set<CategoryOptionCombo> persistedOptionCombos = Sets.newHashSet( categoryCombo.getOptionCombos() );
 
-        boolean modified = false;
-
         for ( CategoryOptionCombo optionCombo : generatedOptionCombos )
         {
             if ( !persistedOptionCombos.contains( optionCombo ) )
@@ -82,7 +81,6 @@ public class DefaultCategoryManager
                 categoryService.addCategoryOptionCombo( optionCombo );
 
                 log.info( "Added missing category option combo: " + optionCombo + " for category combo: " + categoryCombo.getName() );
-                modified = true;
             }
         }
 
@@ -96,9 +94,9 @@ public class DefaultCategoryManager
             {
                 try
                 {
-                    categoryService.deleteCategoryOptionCombo( optionCombo );
+                    categoryService.deleteCategoryOptionComboNoRollback( optionCombo );
                 }
-                catch ( Exception ex )
+                catch ( DeleteNotAllowedException ex )
                 {
                     log.warn( "Could not delete category option combo: " + optionCombo );
                     continue;
@@ -109,13 +107,7 @@ public class DefaultCategoryManager
                 categoryService.deleteCategoryOptionCombo( optionCombo );
 
                 log.info( "Deleted obsolete category option combo: " + optionCombo + " for category combo: " + categoryCombo.getName() );
-                modified = true;
             }
-        }
-
-        if ( modified )
-        {
-            categoryService.updateCategoryCombo( categoryCombo );
         }
     }
 
