@@ -92,6 +92,7 @@ import org.hisp.dhis.programrule.ProgramRuleVariable;
 import org.hisp.dhis.relationship.RelationshipType;
 import org.hisp.dhis.report.Report;
 import org.hisp.dhis.reporttable.ReportTable;
+import org.hisp.dhis.scheduling.JobConfiguration;
 import org.hisp.dhis.schema.Schema;
 import org.hisp.dhis.sqlview.SqlView;
 import org.hisp.dhis.trackedentity.TrackedEntityType;
@@ -253,6 +254,8 @@ public class Metadata
     private List<AnalyticsTableHook> analyticsTableHooks = new ArrayList<>();
 
     private List<ValidationNotificationTemplate> validationNotificationTemplates = new ArrayList<>();
+
+    private List<JobConfiguration> jobConfigurations = new ArrayList<>();
 
     public Metadata()
     {
@@ -1167,6 +1170,19 @@ public class Metadata
         this.validationNotificationTemplates = validationNotificationTemplates;
     }
 
+    @JsonProperty
+    @JacksonXmlElementWrapper( localName = "jobConfigurations", namespace = DxfNamespaces.DXF_2_0 )
+    @JacksonXmlProperty( localName = "jobConfiguration", namespace = DxfNamespaces.DXF_2_0 )
+    public List<JobConfiguration> getJobConfigurations()
+    {
+        return jobConfigurations;
+    }
+
+    public void setJobConfigurations( List<JobConfiguration> jobConfigurations )
+    {
+        this.jobConfigurations = jobConfigurations;
+    }
+
     @Override
     public String toString()
     {
@@ -1226,6 +1242,7 @@ public class Metadata
             ", predictors=" + predictors +
             ", analyticsTableHooks=" + analyticsTableHooks +
             ", validationNotificationTemplates=" + validationNotificationTemplates +
+            ", jobConfigurations=" + jobConfigurations +
             '}';
     }
 }
