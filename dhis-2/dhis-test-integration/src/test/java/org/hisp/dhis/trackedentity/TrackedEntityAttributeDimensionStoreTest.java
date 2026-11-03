@@ -176,8 +176,7 @@ class TrackedEntityAttributeDimensionStoreTest extends PostgresIntegrationTestBa
 
   @Test
   @DisplayName(
-      "an event visualization saves its attribute dimensions by cascade, keeps their order and is"
-          + " found by the HQL that joins them on the attribute")
+      "an event visualization saves its attribute dimensions by cascade and keeps their order")
   void testEventVisualizationOwnsOrderedDimensions() {
     EventVisualization eventVisualization = createEventVisualization('A', program);
     eventVisualization
@@ -195,9 +194,24 @@ class TrackedEntityAttributeDimensionStoreTest extends PostgresIntegrationTestBa
     assertEquals(
         List.of(attributeB.getUid() + ":EQ:1", attributeA.getUid() + ":null"),
         reloaded.stream().map(d -> d.getAttribute().getUid() + ":" + d.getFilter()).toList());
+  }
+
+  @Test
+  @DisplayName(
+      "the store HQL that joins attribute dimensions on their attribute finds only the event"
+          + " visualizations with a dimension of that attribute")
+  void testAnalyticalObjectsByAttributeDimension() {
+    EventVisualization withA = createEventVisualization('A', program);
+    withA.getAttributeDimensions().add(new TrackedEntityAttributeDimension(attributeA, null, null));
+    EventVisualization withB = createEventVisualization('B', program);
+    withB.getAttributeDimensions().add(new TrackedEntityAttributeDimension(attributeB, null, null));
+    eventVisualizationStore.save(withA);
+    eventVisualizationStore.save(withB);
+    entityManager.flush();
+    clearSessionAndSecondLevelCache();
 
     assertEquals(
-        List.of(eventVisualization.getUid()),
+        List.of(withA.getUid()),
         eventVisualizationService.getAnalyticalObjectsByDataDimension(attributeA).stream()
             .map(EventVisualization::getUid)
             .toList());

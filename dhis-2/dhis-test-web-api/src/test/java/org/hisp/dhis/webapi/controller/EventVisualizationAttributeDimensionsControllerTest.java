@@ -55,7 +55,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Tests the metadata import, merge and Jackson path of the attribute dimensions ({@link
- * TrackedEntityAttributeDimension}) embedded in event visualizations.
+ * TrackedEntityAttributeDimension}) embedded in event visualizations, and the dynamic schema that
+ * the field filter uses for them.
  */
 @Transactional
 class EventVisualizationAttributeDimensionsControllerTest
