@@ -33,11 +33,22 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.Type;
 import org.hisp.dhis.common.BaseIdentifiableObject;
 import org.hisp.dhis.common.DxfNamespaces;
 import org.hisp.dhis.common.IdentifiableObject;
@@ -46,6 +57,8 @@ import org.hisp.dhis.legend.LegendSet;
 /**
  * @author Lars Helge Overland
  */
+@Entity
+@Table(name = "trackedentityattributedimension")
 @JacksonXmlRootElement(localName = "attributeDimension", namespace = DxfNamespaces.DXF_2_0)
 @Setter
 @ToString
@@ -53,14 +66,31 @@ import org.hisp.dhis.legend.LegendSet;
 @NoArgsConstructor
 public class TrackedEntityAttributeDimension {
 
-  @Getter @EqualsAndHashCode.Exclude private int id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
+  @Column(name = "trackedentityattributedimensionid")
+  @Getter
+  @EqualsAndHashCode.Exclude
+  private int id;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(
+      name = "trackedentityattributeid",
+      foreignKey = @ForeignKey(name = "fk_teattributedimension_attributeid"))
   private TrackedEntityAttribute attribute;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(
+      name = "legendsetid",
+      foreignKey = @ForeignKey(name = "fk_teattributedimension_legendsetid"))
   private LegendSet legendSet;
 
   /**
    * Operator and filter on this format: <operator>:<filter>;<operator>:<filter> Operator and filter
    * pairs can be repeated any number of times.
    */
+  @Type(type = "text")
+  @Column(name = "filter", columnDefinition = "text")
   private String filter;
 
   public TrackedEntityAttributeDimension(
