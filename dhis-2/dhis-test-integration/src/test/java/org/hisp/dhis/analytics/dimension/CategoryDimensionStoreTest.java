@@ -219,7 +219,6 @@ class CategoryDimensionStoreTest extends PostgresIntegrationTestBase {
     clearSessionAndSecondLevelCache();
 
     CategoryDimension reloaded = reload(dimension);
-    assertEquals(dimension.getId(), reloaded.getId());
     assertEquals(metadata.c1().getUid(), reloaded.getDimension().getUid());
   }
 

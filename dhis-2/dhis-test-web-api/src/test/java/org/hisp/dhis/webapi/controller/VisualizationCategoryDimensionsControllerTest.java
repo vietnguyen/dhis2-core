@@ -42,9 +42,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.hisp.dhis.http.HttpStatus;
-import org.hisp.dhis.jsontree.JsonArray;
 import org.hisp.dhis.jsontree.JsonObject;
 import org.hisp.dhis.test.webapi.PostgresControllerIntegrationTestBase;
+import org.hisp.dhis.test.webapi.json.domain.JsonProperty;
+import org.hisp.dhis.test.webapi.json.domain.JsonSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,20 +157,21 @@ class VisualizationCategoryDimensionsControllerTest extends PostgresControllerIn
   /** The mapping-derived flags of the categoryDimension schema and its properties. */
   @Test
   void testCategoryDimensionSchema() {
-    JsonObject schema = GET("/schemas/categoryDimension").content(HttpStatus.OK);
-    assertTrue(schema.getBoolean("persisted").booleanValue());
-    assertTrue(schema.getBoolean("embeddedObject").booleanValue());
+    JsonSchema schema =
+        GET("/schemas/categoryDimension").content(HttpStatus.OK).as(JsonSchema.class);
+    assertTrue(schema.isPersisted());
+    assertTrue(schema.isEmbeddedObject());
 
-    JsonObject category = property(schema, "category");
-    assertTrue(category.getBoolean("persisted").booleanValue());
-    assertTrue(category.getBoolean("manyToOne").booleanValue());
-    assertTrue(category.getBoolean("owner").booleanValue());
+    JsonProperty category = property(schema, "category");
+    assertTrue(category.isPersisted());
+    assertTrue(category.isManyToOne());
+    assertTrue(category.isOwner());
 
-    JsonObject options = property(schema, "categoryOption");
-    assertTrue(options.getBoolean("persisted").booleanValue());
-    assertTrue(options.getBoolean("ordered").booleanValue());
-    assertTrue(options.getBoolean("manyToMany").booleanValue());
-    assertTrue(options.getBoolean("owner").booleanValue());
+    JsonProperty options = property(schema, "categoryOption");
+    assertTrue(options.isPersisted());
+    assertTrue(options.isOrdered());
+    assertTrue(options.isManyToMany());
+    assertTrue(options.isOwner());
   }
 
   private static String option(String uid) {
@@ -224,14 +226,11 @@ class VisualizationCategoryDimensionsControllerTest extends PostgresControllerIn
         .toList();
   }
 
-  private static JsonObject property(JsonObject schema, String name) {
-    JsonArray properties = schema.getArray("properties");
-    for (int i = 0; i < properties.size(); i++) {
-      if (name.equals(text(properties.getObject(i), "name"))) {
-        return properties.getObject(i);
-      }
-    }
-    return fail("no schema property " + name);
+  private static JsonProperty property(JsonSchema schema, String name) {
+    return schema.getProperties().stream()
+        .filter(property -> name.equals(property.getName()))
+        .findFirst()
+        .orElseGet(() -> fail("no schema property " + name));
   }
 
   private static String text(JsonObject object, String key) {
