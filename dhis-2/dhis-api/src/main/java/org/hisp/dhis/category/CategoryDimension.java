@@ -34,25 +34,61 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nonnull;
-import org.hisp.dhis.common.BaseIdentifiableObject;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hisp.dhis.common.DimensionalEmbeddedObject;
 import org.hisp.dhis.common.DxfNamespaces;
+import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.schema.PropertyType;
 import org.hisp.dhis.schema.annotation.Property;
 
 /**
  * @author Lars Helge Overland
  */
+@Entity
+@Table(name = "categorydimension")
+@Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
 @JacksonXmlRootElement(localName = "categoryDimension", namespace = DxfNamespaces.DXF_2_0)
 public class CategoryDimension implements DimensionalEmbeddedObject {
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
+  @Column(name = "categorydimensionid")
   private int id;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "categoryid", foreignKey = @ForeignKey(name = "fk_categorydimension_category"))
   private Category dimension;
 
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "categorydimension_items",
+      joinColumns =
+          @JoinColumn(
+              name = "categorydimensionid",
+              foreignKey = @ForeignKey(name = "fk_categorydimension_items_categorydimensionid")),
+      inverseJoinColumns =
+          @JoinColumn(
+              name = "categoryoptionid",
+              foreignKey = @ForeignKey(name = "fk_categorydimension_items_categoryoptionid")))
+  @OrderColumn(name = "sort_order")
+  @Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
   private List<CategoryOption> items = new ArrayList<>();
 
   public int getId() {
@@ -64,7 +100,7 @@ public class CategoryDimension implements DimensionalEmbeddedObject {
   }
 
   @JsonProperty("category")
-  @JsonSerialize(as = BaseIdentifiableObject.class)
+  @JsonSerialize(as = IdentifiableObject.class)
   @JacksonXmlProperty(localName = "category", namespace = DxfNamespaces.DXF_2_0)
   @Property(value = PropertyType.REFERENCE, required = Property.Value.TRUE)
   public Category getDimension() {
