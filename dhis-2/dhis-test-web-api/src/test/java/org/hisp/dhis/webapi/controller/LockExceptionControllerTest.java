@@ -32,11 +32,22 @@ package org.hisp.dhis.webapi.controller;
 import static java.lang.String.format;
 import static org.hisp.dhis.http.HttpAssertions.assertStatus;
 import static org.hisp.dhis.test.webapi.Assertions.assertWebMessage;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Set;
+import org.hisp.dhis.dataset.LockException;
 import org.hisp.dhis.http.HttpStatus;
+import org.hisp.dhis.jsontree.JsonArray;
+import org.hisp.dhis.jsontree.JsonObject;
+import org.hisp.dhis.schema.Property;
+import org.hisp.dhis.schema.Schema;
+import org.hisp.dhis.schema.SchemaService;
 import org.hisp.dhis.test.webapi.PostgresControllerIntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -46,6 +57,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase {
+
+  @Autowired private SchemaService schemaService;
 
   private String ouId;
 
@@ -128,5 +141,115 @@ class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase 
         "ERROR",
         "Can't find OrganisationUnit with id =xyz",
         POST("/lockExceptions/?ou=xyz&pe=2021-01&ds=" + dsId).content(HttpStatus.CONFLICT));
+  }
+
+  @Test
+  void testGetLockExceptionsServesTheStoredLockException() {
+    addLockException("2021-01");
+
+    JsonArray lockExceptions =
+        GET("/lockExceptions").content(HttpStatus.OK).getArray("lockExceptions");
+
+    assertEquals(1, lockExceptions.size());
+    JsonObject lockException = lockExceptions.getObject(0);
+    assertEquals(
+        Set.of("id", "name", "created", "period", "organisationUnit", "dataSet"),
+        Set.copyOf(lockException.names()));
+    assertEquals("My data set (My Unit, 202101)", lockException.getString("name").string());
+    assertEquals("Monthly", lockException.getString("period.periodType").string());
+    assertEquals("2021-01-01T00:00:00.000", lockException.getString("period.startDate").string());
+    assertEquals(ouId, lockException.getString("organisationUnit.id").string());
+    assertEquals(dsId, lockException.getString("dataSet.id").string());
+    assertTrue(lockException.getString("created").exists());
+  }
+
+  @Test
+  void testGetLockExceptionByKey() {
+    addLockException("2021-01");
+    String key =
+        GET("/lockExceptions")
+            .content(HttpStatus.OK)
+            .getArray("lockExceptions")
+            .getObject(0)
+            .getString("id")
+            .string();
+
+    JsonArray lockExceptions =
+        GET("/lockExceptions?key={key}", key).content(HttpStatus.OK).getArray("lockExceptions");
+
+    assertEquals(1, lockExceptions.size());
+    assertEquals(key, lockExceptions.getObject(0).getString("id").string());
+  }
+
+  @Test
+  void testGetLockExceptionCombinationsGroupsByDataSetAndPeriod() {
+    addLockException("2021-01");
+    addLockException("2021-02");
+    // the combinations are read with plain JDBC
+    dbmsManager.flushSession();
+
+    JsonArray combinations =
+        GET("/lockExceptions/combinations").content(HttpStatus.OK).getArray("lockExceptions");
+
+    assertEquals(2, combinations.size());
+    assertEquals("My data set (202101)", combinations.getObject(0).getString("name").string());
+    assertEquals("My data set (202102)", combinations.getObject(1).getString("name").string());
+    assertEquals(dsId, combinations.getObject(0).getString("dataSet.id").string());
+    assertFalse(combinations.getObject(0).getString("organisationUnit").exists());
+  }
+
+  @Test
+  void testDeleteLockExceptionOfOrganisationUnitKeepsOtherPeriods() {
+    addLockException("2021-01");
+    addLockException("2021-02");
+
+    assertStatus(
+        HttpStatus.NO_CONTENT, DELETE("/lockExceptions?ou={ou}&pe=2021-01&ds={ds}", ouId, dsId));
+    clearSession();
+
+    JsonArray lockExceptions =
+        GET("/lockExceptions").content(HttpStatus.OK).getArray("lockExceptions");
+    assertEquals(1, lockExceptions.size());
+    assertEquals(
+        "My data set (My Unit, 202102)", lockExceptions.getObject(0).getString("name").string());
+  }
+
+  @Test
+  void testDeleteLockExceptionCombinationRemovesAllOrganisationUnits() {
+    addLockException("2021-01");
+
+    assertStatus(HttpStatus.NO_CONTENT, DELETE("/lockExceptions?pe=2021-01&ds=" + dsId));
+    clearSession();
+
+    assertTrue(GET("/lockExceptions").content(HttpStatus.OK).getArray("lockExceptions").isEmpty());
+  }
+
+  /** LockException has no SchemaDescriptor; its dynamic schema is built from the mapping. */
+  @Test
+  void testDynamicSchemaProperties() {
+    Schema schema = schemaService.getSchema(LockException.class);
+
+    assertEquals(
+        Set.of("id", "name", "created", "period", "organisationUnit", "dataSet"),
+        schema.getPropertyMap().keySet());
+    assertFalse(schema.getProperty("name").isPersisted());
+    for (String name : Set.of("period", "organisationUnit", "dataSet")) {
+      Property property = schema.getProperty(name);
+      assertTrue(property.isPersisted(), name);
+      assertTrue(property.isManyToOne(), name);
+      assertTrue(property.isOwner(), name);
+    }
+    assertTrue(schema.getProperty("created").isPersisted());
+    assertTrue(schema.getProperty("created").isRequired());
+  }
+
+  private void addLockException(String period) {
+    assertStatus(
+        HttpStatus.CREATED, POST("/lockExceptions/?ou={ou}&pe={pe}&ds={ds}", ouId, period, dsId));
+  }
+
+  private void clearSession() {
+    dbmsManager.flushSession();
+    dbmsManager.clearSession();
   }
 }

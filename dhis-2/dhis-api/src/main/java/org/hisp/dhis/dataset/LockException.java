@@ -34,6 +34,18 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 import java.util.Date;
 import lombok.Setter;
 import lombok.ToString;
@@ -49,18 +61,33 @@ import org.hisp.dhis.period.Period;
 /**
  * @author Morten Olav Hansen <mortenoh@gmail.com>
  */
+@Entity
+@Table(name = "lockexception")
 @Setter
 @ToString
 @JacksonXmlRootElement(localName = "lockException", namespace = DxfNamespaces.DXF_2_0)
 public class LockException implements PrimaryKeyObject {
+  @Id
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
+  @Column(name = "lockexceptionid")
   private long id;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "periodid", foreignKey = @ForeignKey(name = "fk_lockexception_periodid"))
   private Period period;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(
+      name = "organisationunitid",
+      foreignKey = @ForeignKey(name = "fk_lockexception_organisationunitid"))
   private OrganisationUnit organisationUnit;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "datasetid", foreignKey = @ForeignKey(name = "fk_lockexception_datasetid"))
   private DataSet dataSet;
 
+  @Column(name = "created", nullable = false)
+  @Temporal(TemporalType.TIMESTAMP)
   private Date created;
 
   public LockException() {}

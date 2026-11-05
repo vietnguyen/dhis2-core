@@ -31,9 +31,22 @@ package org.hisp.dhis.dataset;
 
 import static org.hisp.dhis.test.utils.Assertions.assertContainsOnly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import jakarta.persistence.EntityManagerFactory;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.id.enhanced.NoopOptimizer;
+import org.hibernate.id.enhanced.SequenceStyleGenerator;
+import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.type.ManyToOneType;
+import org.hibernate.type.TimestampType;
 import org.hisp.dhis.common.IdentifiableObjectManager;
 import org.hisp.dhis.organisationunit.OrganisationUnit;
 import org.hisp.dhis.period.MonthlyPeriodType;
@@ -46,6 +59,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(Lifecycle.PER_CLASS)
@@ -56,6 +70,10 @@ class LockExceptionStoreTest extends PostgresIntegrationTestBase {
   @Autowired private PeriodService periodService;
 
   @Autowired private LockExceptionStore store;
+
+  @Autowired private JdbcTemplate jdbcTemplate;
+
+  @Autowired private EntityManagerFactory entityManagerFactory;
 
   private PeriodType pt;
 
@@ -126,6 +144,107 @@ class LockExceptionStoreTest extends PostgresIntegrationTestBase {
     assertEquals(0, getLockExceptionCount(ouB));
   }
 
+  @Test
+  void testIdIsGeneratedFromHibernateSequenceOneValuePerId() {
+    SequenceStyleGenerator generator =
+        assertInstanceOf(SequenceStyleGenerator.class, persister().getIdentifierGenerator());
+
+    assertEquals(
+        "hibernate_sequence",
+        generator.getDatabaseStructure().getPhysicalName().getObjectName().getText());
+    assertEquals(1, generator.getDatabaseStructure().getIncrementSize());
+    assertInstanceOf(NoopOptimizer.class, generator.getOptimizer());
+  }
+
+  @Test
+  void testColumnsAreWrittenAndReadBack() {
+    LockException lockException = new LockException(pA, ouA, dsB);
+    store.save(lockException);
+    entityManager.flush();
+
+    Map<String, Object> row =
+        jdbcTemplate.queryForMap(
+            "select periodid, organisationunitid, datasetid, created from lockexception"
+                + " where lockexceptionid = ?",
+            lockException.getId());
+    assertEquals(pA.getId(), ((Number) row.get("periodid")).longValue());
+    assertEquals(ouA.getId(), ((Number) row.get("organisationunitid")).longValue());
+    assertEquals(dsB.getId(), ((Number) row.get("datasetid")).longValue());
+    assertEquals(lockException.getCreated().getTime(), ((Date) row.get("created")).getTime());
+
+    clearSession();
+
+    LockException reloaded = store.get(lockException.getId());
+    assertEquals(pA.getIsoDate(), reloaded.getPeriod().getIsoDate());
+    assertEquals(ouA.getUid(), reloaded.getOrganisationUnit().getUid());
+    assertEquals(dsB.getUid(), reloaded.getDataSet().getUid());
+    assertEquals(lockException.getCreated().getTime(), reloaded.getCreated().getTime());
+  }
+
+  @Test
+  void testOrganisationUnitIsOptional() {
+    LockException lockException = new LockException(pA, null, dsC);
+    store.save(lockException);
+    entityManager.flush();
+    clearSession();
+
+    assertNull(store.get(lockException.getId()).getOrganisationUnit());
+  }
+
+  @Test
+  void testOnlyCreatedIsNotNull() {
+    EntityPersister persister = persister();
+    boolean[] nullability = persister.getPropertyNullability();
+
+    assertFalse(nullability[propertyIndex("created")]);
+    assertTrue(nullability[propertyIndex("period")]);
+    assertTrue(nullability[propertyIndex("organisationUnit")]);
+    assertTrue(nullability[propertyIndex("dataSet")]);
+  }
+
+  @Test
+  void testCreatedIsMappedAsTimestamp() {
+    assertInstanceOf(TimestampType.class, persister().getPropertyType("created"));
+  }
+
+  @Test
+  void testReferencesAreLazy() {
+    for (String property : List.of("period", "organisationUnit", "dataSet")) {
+      ManyToOneType type =
+          assertInstanceOf(ManyToOneType.class, persister().getPropertyType(property));
+      assertFalse(type.isEager(null), property);
+    }
+  }
+
+  @Test
+  void testIsNotSecondLevelCached() {
+    assertFalse(persister().canReadFromCache());
+  }
+
+  @Test
+  void testDeleteByDataSetAndPeriodKeepsOtherDataSets() {
+    store.save(new LockException(pA, ouA, dsA));
+    store.save(new LockException(pA, ouB, dsA));
+    store.save(new LockException(pA, ouA, dsB));
+
+    store.deleteLockExceptions(dsA, pA);
+
+    assertEquals(0, store.getCount(dsA, pA, ouA));
+    assertEquals(0, store.getCount(dsA, pA, ouB));
+    assertEquals(1, store.getCount(dsB, pA, ouA));
+  }
+
+  @Test
+  void testDeleteByDataSetPeriodAndOrganisationUnitKeepsOtherOrganisationUnits() {
+    store.save(new LockException(pA, ouA, dsC));
+    store.save(new LockException(pA, ouB, dsC));
+
+    store.deleteLockExceptions(dsC, pA, ouA);
+
+    assertEquals(0, store.getCount(dsC, pA, ouA));
+    assertEquals(1, store.getCount(dsC, pA, ouB));
+  }
+
   /**
    * Test HQL delete statement with an HQL select statement to ensure the deleted rows are visible
    * by the current transaction.
@@ -140,5 +259,16 @@ class LockExceptionStoreTest extends PostgresIntegrationTestBase {
                 "select count(*) from LockException le where le.organisationUnit = :target")
             .setParameter("target", target)
             .getSingleResult();
+  }
+
+  private EntityPersister persister() {
+    return entityManagerFactory
+        .unwrap(SessionFactoryImplementor.class)
+        .getMetamodel()
+        .entityPersister(LockException.class);
+  }
+
+  private int propertyIndex(String property) {
+    return persister().getEntityMetamodel().getPropertyIndex(property);
   }
 }
