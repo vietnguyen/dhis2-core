@@ -160,7 +160,11 @@ class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase 
     assertEquals("2021-01-01T00:00:00.000", lockException.getString("period.startDate").string());
     assertEquals(ouId, lockException.getString("organisationUnit.id").string());
     assertEquals(dsId, lockException.getString("dataSet.id").string());
-    assertTrue(lockException.getString("created").exists());
+    assertTrue(
+        lockException
+            .getString("created")
+            .string()
+            .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}"));
   }
 
   @Test
@@ -183,7 +187,9 @@ class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase 
 
   @Test
   void testGetLockExceptionCombinationsGroupsByDataSetAndPeriod() {
+    String ou2Id = addLinkedOrganisationUnit();
     addLockException("2021-01");
+    addLockException(ou2Id, "2021-01");
     addLockException("2021-02");
     // the combinations are read with plain JDBC
     dbmsManager.flushSession();
@@ -216,7 +222,9 @@ class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase 
 
   @Test
   void testDeleteLockExceptionCombinationRemovesAllOrganisationUnits() {
+    String ou2Id = addLinkedOrganisationUnit();
     addLockException("2021-01");
+    addLockException(ou2Id, "2021-01");
 
     assertStatus(HttpStatus.NO_CONTENT, DELETE("/lockExceptions?pe=2021-01&ds=" + dsId));
     clearSession();
@@ -244,12 +252,27 @@ class LockExceptionControllerTest extends PostgresControllerIntegrationTestBase 
   }
 
   private void addLockException(String period) {
+    addLockException(ouId, period);
+  }
+
+  private void addLockException(String organisationUnitId, String period) {
     assertStatus(
-        HttpStatus.CREATED, POST("/lockExceptions/?ou={ou}&pe={pe}&ds={ds}", ouId, period, dsId));
+        HttpStatus.CREATED,
+        POST("/lockExceptions/?ou={ou}&pe={pe}&ds={ds}", organisationUnitId, period, dsId));
+  }
+
+  private String addLinkedOrganisationUnit() {
+    String id =
+        assertStatus(
+            HttpStatus.CREATED,
+            POST(
+                "/organisationUnits/",
+                "{'name':'My Unit 2', 'shortName':'OU2', 'openingDate': '2020-01-01'}"));
+    assertStatus(HttpStatus.OK, POST("/organisationUnits/{ou}/dataSets/{ds}", id, dsId));
+    return id;
   }
 
   private void clearSession() {
-    dbmsManager.flushSession();
     dbmsManager.clearSession();
   }
 }

@@ -40,6 +40,7 @@ import jakarta.persistence.EntityManagerFactory;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.id.enhanced.NoopOptimizer;
@@ -185,7 +186,6 @@ class LockExceptionStoreTest extends PostgresIntegrationTestBase {
   void testOrganisationUnitIsOptional() {
     LockException lockException = new LockException(pA, null, dsC);
     store.save(lockException);
-    entityManager.flush();
     clearSession();
 
     assertNull(store.get(lockException.getId()).getOrganisationUnit());
@@ -196,6 +196,9 @@ class LockExceptionStoreTest extends PostgresIntegrationTestBase {
     EntityPersister persister = persister();
     boolean[] nullability = persister.getPropertyNullability();
 
+    assertEquals(
+        Set.of("created", "period", "organisationUnit", "dataSet"),
+        Set.of(persister.getPropertyNames()));
     assertFalse(nullability[propertyIndex("created")]);
     assertTrue(nullability[propertyIndex("period")]);
     assertTrue(nullability[propertyIndex("organisationUnit")]);
